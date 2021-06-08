@@ -1,0 +1,12 @@
+{
+  "Cucina": {
+    "broker": "127.0.0.1:1883",
+    "contapersone": [
+      {
+        "id": 1,
+        "nome": "Simulatore di contapersonev1",
+        "dispositivo": "Simulatore"
+      }
+    ]
+  }
+}
