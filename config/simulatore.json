@@ -6,6 +6,11 @@
         "id": 1,
         "nome": "Simulatore di contapersonev1",
         "dispositivo": "Simulatore"
+      },
+      {
+        "id": 2,
+        "nome": "Contapersone tramite Kinect",
+        "dispositivo": "Kinect"
       }
     ]
   }
