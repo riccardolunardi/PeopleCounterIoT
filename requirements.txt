@@ -1,0 +1,7 @@
+paho-mqtt~=1.5.1
+dateutils
+python-dateutil~=2.8.1
+setuptools~=49.2.1
+imutils
+numpy
+dlib
