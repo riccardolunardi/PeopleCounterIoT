@@ -1,5 +1,8 @@
-from InfoManager import InfoManager
 import unittest
+import sys
+
+sys.path.insert(1, '..')
+from src.bases.InfoManager import InfoManager
 
 
 class InfoManagerTest(unittest.TestCase):
