@@ -10,7 +10,8 @@
       {
         "id": 2,
         "nome": "Contapersone tramite Kinect",
-        "dispositivo": "Kinect"
+        "dispositivo": "Kinect",
+        "direzione_entrata": "down"
       }
     ]
   }
