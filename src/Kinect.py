@@ -5,18 +5,29 @@ import imutils
 import numpy as np
 import imutils.video
 
-from tracking_src import config, thread, frame_convert2
+from tracking_src import thread, frame_convert2
 from bases.Contapersone import Contapersone
 from tracking_src.centroidtracker import CentroidTracker
 from tracking_src.trackableobject import TrackableObject
 
 
 class Kinect(Contapersone):
+    """
+    Classe che gestisce il contatore di persone realizzato con Kinect e OpenCV
+    """
+
     def __init__(self, id_contapersone=1, config_file="../config/simulatore.json", debug=0):
+        if not debug:
+            self.grafica_necessaria = False # Si sta avviando lo script da terminale
+        else:
+            self.grafica_necessaria = True # Si sta avviando lo script a video/VNC, in modo da poter vedere il feed video del kinect
         super().__init__(id_contapersone, config_file)
 
     @staticmethod
     def get_depth():
+        """
+        Ritorna l'immagine di profondità rilevata dal kinect
+        """
         return freenect.sync_get_depth()[0]
         # return mylib.frame_convert2.pretty_depth_cv(freenect.sync_get_depth()[0])
 
@@ -70,10 +81,6 @@ class Kinect(Contapersone):
             # the frame from BGR to RGB for dlib
 
             frame = imutils.resize(frame, width=300)
-            # frame = cv2.rotate(frame, cv2.cv2.ROTATE_90_CLOCKWISE)
-            # frame = frame[0:260, 0:500]
-            # drawing_frame = tracking_src.frame_convert2.pretty_depth(frame)
-            # drawing_frame = frame
 
             current_depth = 715
             threshold = 200
@@ -82,7 +89,6 @@ class Kinect(Contapersone):
 
             frame = frame.astype(np.uint8)
             frame = back_sub.apply(frame)
-            # cv2.imshow("Real-Time Monitoring/Analysis Window3", frame)
 
             # rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -126,8 +132,10 @@ class Kinect(Contapersone):
                     # if a contour has small area, it'll be ignored
                     if cv2.contourArea(c) < min_countour_area or cv2.contourArea(c) > max_countour_area:
                         continue
-
+                    
+                    print("------------------------------------------------------------")
                     print(cv2.contourArea(c))
+
                     # draw an rectangle "around" the object
                     (start_x, start_y, end_x, end_y) = cv2.boundingRect(c)
                     cv2.rectangle(
@@ -174,17 +182,8 @@ class Kinect(Contapersone):
             # draw a horizontal line in the center of the frame -- once an
             # object crosses this line we will determine whether they were
             # moving 'up' or 'down'
-            # cv2.line(frame, (0, 3*H // 5), (W, 3*H // 5), (255, 255, 255), 3)
-            cv2.line(drawing_frame, (0, h // 2), (w, h // 2), (255, 255, 255), 3)
-            # cv2.putText(
-            #     drawing_frame,
-            #     "-Prediction border - Entrance-",
-            #     (10, h - ((len(cnts) * 20) + 200)),
-            #     cv2.FONT_HERSHEY_SIMPLEX,
-            #     0.5,
-            #     (255, 255, 255),
-            #     1
-            # )
+            if self.grafica_necessaria:
+                cv2.line(drawing_frame, (0, h // 2), (w, h // 2), (255, 255, 255), 3)
 
             # use the centroid tracker to associate the (1) old object
             # centroids with (2) the newly computed object centroids
@@ -211,26 +210,40 @@ class Kinect(Contapersone):
                     direction = centroid[1] - np.mean(y)
                     to.centroids.append(centroid)
 
-                    # check to see if the object has been counted or not
+                    # L'oggetto in questione è già stato calcolato? 
+                    # Altrimenti posso scartarlo per non contarlo più volt
                     if not to.counted:
-                        # if the direction is negative (indicating the object
-                        # is moving up) AND the centroid is above the center
-                        # line, count the object
+
+                        # Se la direzione è negativa (la persona si muove verso il basso)
+                        # e il centroide è sopra la riga centrale, lo conto
+                        moved_people = 0
                         if direction < 0 and centroid[1] < h // 2:
                             total_up += 1
                             empty.append(total_up)
                             to.counted = True
-                            self.send(self.gen_passaggio_object(1))
+                        
+                            if self.direzione_entrata == "down":
+                                moved_people = 1
+                            else:
+                                moved_people = -1
+                            
 
-                        # if the direction is positive (indicating the object
-                        # is moving down) AND the centroid is below the
+                        # if the direction is positive (la persona si muove verso l'alto) 
+                        # AND the centroid is below the
                         # center line, count the object
                         elif direction > 0 and centroid[1] > h // 2:
                             total_down += 1
                             empty1.append(total_down)
                             x = [len(empty1) - len(empty)]
                             to.counted = True
-                            self.send(self.gen_passaggio_object(-1))
+
+                            if self.direzione_entrata == "down":
+                                moved_people = -1
+                            else:
+                                moved_people = 1
+                        
+                        if moved_people:
+                            print("Ricezione del messaggio andata a buon fine?", self.send(self.gen_passaggio_object(moved_people)))
 
                 # store the trackable object in our dictionary
                 trackable_objects[objectID] = to
@@ -238,9 +251,10 @@ class Kinect(Contapersone):
                 # draw both the ID of the object and the centroid of the
                 # object on the output frame
                 text = "ID {}".format(objectID)
-                cv2.putText(drawing_frame, text, (centroid[0] - 10, centroid[1] - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-                cv2.circle(drawing_frame, (centroid[0], centroid[1]), 4, (255, 255, 255), -1)
+                if self.grafica_necessaria:
+                    cv2.putText(drawing_frame, text, (centroid[0] - 10, centroid[1] - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+                    cv2.circle(drawing_frame, (centroid[0], centroid[1]), 4, (255, 255, 255), -1)
 
             # construct a tuple of information we will be displaying on the
             info = [
@@ -252,18 +266,21 @@ class Kinect(Contapersone):
             info2 = [("Total people inside", x), ]
 
             # Display the output
-            for (i, (k, v)) in enumerate(info):
-                text = "{}: {}".format(k, v)
-                cv2.putText(drawing_frame, text, (10, h - ((i * 20) + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
-                            (255, 255, 255), 2)
+            if self.grafica_necessaria:
+                for (i, (k, v)) in enumerate(info):
+                    text = "{}: {}".format(k, v)
+                    cv2.putText(drawing_frame, text, (10, h - ((i * 20) + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
+                                (255, 255, 255), 2)
 
-            for (i, (k, v)) in enumerate(info2):
-                text = "{}: {}".format(k, v)
-                cv2.putText(drawing_frame, text, (265, h - ((i * 20) + 60)), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
-                            (255, 255, 255), 2)
+                for (i, (k, v)) in enumerate(info2):
+                    text = "{}: {}".format(k, v)
+                    cv2.putText(drawing_frame, text, (265, h - ((i * 20) + 60)), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
+                                (255, 255, 255), 2)
 
             # show the output frame
-            cv2.imshow("Real-Time Monitoring/Analysis Window", drawing_frame)
+            if self.grafica_necessaria:
+                cv2.imshow("Real-Time Monitoring/Analysis Window", drawing_frame)
+
             key = cv2.waitKey(1) & 0xFF
 
             # increment the total number of frames processed thus far and
