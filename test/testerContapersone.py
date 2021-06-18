@@ -5,7 +5,7 @@ from datetime import datetime
 from dateutil import tz
 
 import sys
-sys.path.insert(1, '..')
+sys.path.insert(1, '../src/bases')
 from Contapersone import Contapersone, ContapersoneNotFound
 from Passaggio import Passaggio
 from Simulatore import Simulatore

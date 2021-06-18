@@ -1,8 +1,8 @@
 import unittest
 import sys
 
-sys.path.insert(1, '..')
-from src.bases.InfoManager import InfoManager
+sys.path.insert(1, '../src/bases')
+from InfoManager import InfoManager
 
 
 class InfoManagerTest(unittest.TestCase):
