@@ -77,7 +77,6 @@ class CentroidTracker:
 			# la distanza tra di loro. Il nostro obiettivo è quello di
 			# accoppiare i centroidi vecchi con quelli nuovi
 			distance = dist.cdist(np.array(object_centroids), input_centroids)
-			print(distance) #TEST
 
 			# Per fare un accoppiamento corretto, dobbiamo prima trovare
 			# il valore (della distanza) più piccolo per ogni riga (asse x),
@@ -88,6 +87,8 @@ class CentroidTracker:
 			# i valori per la rispettiva riga (asse X)
 			cols = distance.argmin(axis=1)[rows]
 
+			# In questo modo otteniamo gli indici corretti per identificare poi, nel ciclo for, la distanza
+
 			# Usiamo i set per tenere traccia delle colonne e delle righe
 			# di cui abbiamo già tenuto conto
 			used_rows = set()
@@ -97,14 +98,17 @@ class CentroidTracker:
 			# questo modo perché le righe e le colonne sono ordinate in modo tale
 			# che l'i-esimo elemento di rows corrisponde al punto dell'i-esimo
 			# elemento di cols 
+			# Ogni iterazione significa una elaborazione del centroide di un certo oggetto
 			for (row, col) in zip(rows, cols):
 				# Ignoriamo la riga e la colonna se è già stata esaminata
+				print(row, col)
 				if row in used_rows or col in used_cols:
 					continue
 
 				# Se la distanza tra i due è più grande della distanza
 				# massima consentita, allora prosegui. Non ha senso
 				# associare i centroidi allo stesso oggetto
+				print(distance[row, col])
 				if distance[row, col] > self.max_distance:
 					continue
 
