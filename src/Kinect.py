@@ -19,8 +19,10 @@ class Kinect(Contapersone):
     def __init__(self, id_contapersone=1, config_file="../config/simulatore.json", debug=1):
         if not debug:
             self.grafica_necessaria = False # Si sta avviando lo script da terminale
+            print("DEBUG: NO")
         else:
             self.grafica_necessaria = True # Si sta avviando lo script a video/VNC, in modo da poter vedere il feed video del kinect
+            print("DEBUG: SI")
 
         super().__init__(id_contapersone, config_file)
 
@@ -149,13 +151,6 @@ class Kinect(Contapersone):
 
                     # Disegna un rettangolo attorno all'oggetto
                     (start_x, start_y, end_x, end_y) = cv2.boundingRect(c)
-                    """ cv2.rectangle(
-                        drawing_frame,
-                        (start_x, start_y),
-                        (start_x + end_x, start_y + end_y),
-                        (255, 255, 255),
-                        2
-                    ) # NECESSARIO?????????? """
 
                     # Dati i vertici del rettangolo, creiamo un tracker tramite dlib
                     # e lo facciamo partire con start_track
@@ -256,27 +251,31 @@ class Kinect(Contapersone):
                 # printato il frame a video
                 if self.grafica_necessaria:
                     text = "ID {}".format(objectID)
+                    
                     cv2.putText(drawing_frame, text, (centroid[0] - 10, centroid[1] - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
                     cv2.circle(drawing_frame, (centroid[0], centroid[1]), 4, (255, 255, 255), -1)
 
-                    info = [
-                        ("Exit", total_up),
-                        ("Enter", total_down),
-                        ("Status", status),
-                    ]
+            if self.grafica_necessaria:
+                info = [
+                    ("Exit", total_up),
+                    ("Enter", total_down),
+                    ("Status", status),
+                ]
 
-                    info2 = [("Total people inside", x), ]
+                info2 = [("Total people inside", x), ]
 
-                    for (i, (k, v)) in enumerate(info):
-                        text = "{}: {}".format(k, v)
-                        cv2.putText(drawing_frame, text, (10, h - ((i * 20) + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
-                                    (255, 255, 255), 2)
+                for (i, (k, v)) in enumerate(info):
+                    text = "{}: {}".format(k, v)
+                    cv2.putText(drawing_frame, text, (10, h - ((i * 20) + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
+                                (255, 255, 255), 2)
 
-                    for (i, (k, v)) in enumerate(info2):
-                        text = "{}: {}".format(k, v)
-                        cv2.putText(drawing_frame, text, (265, h - ((i * 20) + 60)), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
-                                    (255, 255, 255), 2)
+                for (i, (k, v)) in enumerate(info2):
+                    text = "{}: {}".format(k, v)
+                    cv2.putText(drawing_frame, text, (265, h - ((i * 20) + 60)), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
+                                (255, 255, 255), 2)
+            
+            
                 cv2.imshow("Real-Time Monitoring/Analysis Window", drawing_frame)
 
             key = cv2.waitKey(1) & 0xFF
