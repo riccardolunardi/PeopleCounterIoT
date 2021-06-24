@@ -16,11 +16,12 @@ class Kinect(Contapersone):
     Classe che gestisce il contatore di persone realizzato con Kinect e OpenCV
     """
 
-    def __init__(self, id_contapersone=1, config_file="../config/simulatore.json", debug=0):
+    def __init__(self, id_contapersone=1, config_file="../config/simulatore.json", debug=1):
         if not debug:
             self.grafica_necessaria = False # Si sta avviando lo script da terminale
         else:
             self.grafica_necessaria = True # Si sta avviando lo script a video/VNC, in modo da poter vedere il feed video del kinect
+
         super().__init__(id_contapersone, config_file)
 
     @staticmethod
@@ -34,185 +35,188 @@ class Kinect(Contapersone):
     def main_procedure(self):
         skip_frames = 10
 
-        # initialize the frame dimensions (we'll set them as soon as we read
-        # the first frame from the video)
+        # Le variabili w e h indicano le dimensione dei frame
+        # ricevuti dal kinect; il valore verrà inizializzato
+        # al primo frame ricevuto
         w = None
         h = None
 
-        # instantiate our centroid tracker, then initialize a list to store
-        # each of our dlib correlation trackers, followed by a dictionary to
-        # map each unique object ID to a TrackableObject
-        ct = CentroidTracker(maxDisappeared=25, maxDistance=60)
+        # Inizializziamo il tracker dei centroidi, con i quali tracciamo il movimento degli oggetti sotto al Kinect
+        # Inizializziamo un lista per salvare tutti i "dlib correlation trackers" che verrano generati
+        # Inizializziamo un dizionario per mappareun ID univoco con un oggetto tracciato (TrackableObject)
+        ct = CentroidTracker(max_disappeared=25, max_distance=60)
         trackers = []
         trackable_objects = {}
 
-        # initialize the total number of frames processed thus far, along
-        # with the total number of objects that have moved either up or down
+        # Inizializziamo il numero totale di frame inizializzati, che servirà per capire ogni quanto iniziare il
+        # rilevamento di oggetti nell'immagine. Inizializziamo anche il numero di oggetti/persone che sono passate (cioè 0)
         total_frames = 0
+        
         total_down = 0
         total_up = 0
         x = []
         empty = []
         empty1 = []
 
+        # Necessario per stabilire il frame rate quando si esce dalla modalità di debug
         fps = imutils.video.FPS().start()
 
+        # Quanto dev'essere piccolo l'area "bianca" (quindi l'area dove si trova qualcosa) prima di iniziare a tracciare un oggetto? E quanto dev'essere grande?
         min_countour_area = 4000
         max_countour_area = 40000
 
+        # Per fare la detection degli oggetti, usiamo la tecnica del "background subtraction".
+        # Dopo vari tentativo, createBackgroundSubtractorKNN è risultato essere la migliore funzione per il nostro caso
         back_sub = cv2.createBackgroundSubtractorKNN(history=70, dist2Threshold=200, detectShadows=False)
 
+        # Inizializzazione della classe di thread, da dove leggeremo i frame
         vs = thread.ThreadingClass()
 
-        # loop over frames from the video stream
         while True:
-            # grab the next frame and handle if we are reading from either
-            # VideoCapture or VideoStream
             frame = vs.read()
-            # frame = frame[1] if args.get("input", False) else frame
 
-            # if we are viewing a video and we did not grab a frame then we
-            # have reached the end of the video
+            # Se il frame è nullo, c'è un errore, quindi si esce dal ciclo
             if frame is None:
                 break
 
-            # resize the frame to have a maximum width of 500 pixels (the
-            # less data we have, the faster we can process it), then convert
-            # the frame from BGR to RGB for dlib
-
+            # Ridimensioniamo il frame, in modo da velocizzare il
+            # processing dell'immagine
             frame = imutils.resize(frame, width=300)
 
+            # THRESHOLDING
+
+            # La sogliatura che effettuiamo viene fatta con 2 limiti, e vogliamo far risaltare il range che si trova
+            # al loro interno. Questo perché vogliamo evitare di rilevare oggetti troppo bassi (carrelli, animali, etc..) e oggetti troppo alti (porte)
+
+            # Usiamo questo valore per la sogliatura dopo aver effettuato fari test
+            # Va ricordato che ogni pixel dell'immagine di profondità ha un valore che va da 0 a 1024 
             current_depth = 715
             threshold = 200
+
+            # L'espressione "frame >= current_depth - threshold" ritorna un array di booleani
+            # Facendo l'end con i booleani di questi 2 array
+            # otteniamo una sogliatura. 
+
+            # L'array booleano finale rappresenta l'immagine in bianco (True) e nero (False). Tale booleano
+            # viene moltiplicato per 255, per poterlo rappresentare come immagine
             frame = 255 * np.logical_and(frame >= current_depth - threshold,
                                          frame <= current_depth + threshold)
-
             frame = frame.astype(np.uint8)
-            frame = back_sub.apply(frame)
+            frame = back_sub.apply(frame) # Viene applicata la background subtraction
 
-            # rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            drawing_frame = frame_convert2.pretty_depth(frame)
-            frame = cv2.medianBlur(frame, 11)
+            # Otteniamo un frame da poter mostrare a video, nel caso serva
+            if self.grafica_necessaria:
+                drawing_frame = frame_convert2.pretty_depth(frame)
 
-            # if the frame dimensions are empty, set them
+            frame = cv2.medianBlur(frame, 11) # Il blur elimina bordi bianchi che potrebbero interferire con la detection
+
+            # Inizializzazione di "h" e "w"
             if w is None or h is None:
                 (h, w) = frame.shape[:2]
 
-            # initialize the current status along with our list of bounding
-            # box rectangles returned by either (1) our object detector or
-            # (2) the correlation trackers
+            # Status rappresenta lo stato in cui è il sistema in un certo momento
+            # Inizilializziamo l'array che conterrà i rettangoli ritornati 
+            # dal (1) object detector o dal correlation trackers (2)
             status = "Waiting"
             rects = []
 
-            # check to see if we should run a more computationally expensive
-            # object detection method to aid our tracker
+            # Controlliamo se è ora di far partire la detection.
+            # Non viene sempre attiavata per le limitazioni del Raspberry
             if total_frames % skip_frames == 0:
-                # set the status and initialize our new set of object trackers
+                # Nuovo stato e inizializzazione dell'array che conterrà i trackers
                 status = "Detecting"
                 trackers = []
 
-                # convert the frame to a blob and pass the blob through the
-                # network and obtain the detections
-                # gray-scale convertion and Gaussian blur filter applying
-
-                # Applicazione in range
+                # Applichiamo una operazione di image processing 
+                # all'immagine, chiamata "chiusura", che unisce le operazioni
+                # di dilatazione e, successivamente, di erosione.
+                # Questo, a livello pratico, va ad "unire" gli oggetti bianchi rilevati uno vicino all'altro:
+                # in questo modo verranno riconosciuti come uno stesso oggetto e non rilevati più volte
                 kernel = np.ones((10, 10), np.uint8)
-
-                # frame = cv2.morphologyEx(frame, cv2.MORPH_OPEN, kernel)
                 frame = cv2.morphologyEx(frame, cv2.MORPH_CLOSE, kernel)
 
                 cnts = cv2.findContours(frame.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 cnts = imutils.grab_contours(cnts)
 
-                # loop over the detections
+                # Per ogni oggetto rilevato da cv2.findContours
                 for c in cnts:
-                    # compute the (x, y)-coordinates of the bounding box
-                    # for the object
-                    # if a contour has small area, it'll be ignored
+                    # Se l'area contornata è troppo pocco0la o trop
                     if cv2.contourArea(c) < min_countour_area or cv2.contourArea(c) > max_countour_area:
                         continue
                     
                     print("------------------------------------------------------------")
                     print(cv2.contourArea(c))
 
-                    # draw an rectangle "around" the object
+                    # Disegna un rettangolo attorno all'oggetto
                     (start_x, start_y, end_x, end_y) = cv2.boundingRect(c)
-                    cv2.rectangle(
+                    """ cv2.rectangle(
                         drawing_frame,
                         (start_x, start_y),
                         (start_x + end_x, start_y + end_y),
                         (255, 255, 255),
                         2
-                    )
+                    ) # NECESSARIO?????????? """
 
-                    # construct a dlib rectangle object from the bounding
-                    # box coordinates and then start the dlib correlation
-                    # tracker
+                    # Dati i vertici del rettangolo, creiamo un tracker tramite dlib
+                    # e lo facciamo partire con start_track
                     tracker = dlib.correlation_tracker()
                     rect = dlib.rectangle(start_x, start_y, start_x + end_x, start_y + end_y)
                     tracker.start_track(frame, rect)
 
-                    # add the tracker to our list of trackers so we can
-                    # utilize it during skip frames
+                    # Il tracker viene salvato, per potrelo utilizzare
+                    # nelle fasi "skip-frame", quindi quando non si è in "Detecting"
                     trackers.append(tracker)
 
-            # otherwise, we should utilize our object *trackers* rather than
-            # object *detectors* to obtain a higher frame processing throughput
+            # Se non siamo in fase di detecting, allora gestiamo i trackers per vedere
+            # dove si stanno muovendo gli oggetti
             else:
-                # loop over the trackers
+
                 for tracker in trackers:
-                    # set the status of our system to be 'tracking' rather
-                    # than 'waiting' or 'detecting'
+                    # Nuovo stato 
                     status = "Tracking"
 
-                    # update the tracker and grab the updated position
+                    # Aggiornamento dei tracker e assegnamo la nuova posizione dei vertici del rettangolo
                     tracker.update(frame)
                     pos = tracker.get_position()
 
-                    # unpack the position object
+                    # Assegnamento dei vertici
                     start_x = int(pos.left())
                     start_y = int(pos.top())
                     end_x = int(pos.right())
                     end_y = int(pos.bottom())
 
-                    # add the bounding box coordinates to the rectangles list
+                    # Aggiungiamo il rettangolo aggiornato alla lista globale dei
+                    # rettangoli dell'immagine
                     rects.append((start_x, start_y, end_x, end_y))
 
-            # draw a horizontal line in the center of the frame -- once an
-            # object crosses this line we will determine whether they were
-            # moving 'up' or 'down'
+            # Se si è in debug, una linea viene inserita al centro dell'immagine.
+            # Se un oggetto la supera, allora vuol dire che sta entrando/uscendo
             if self.grafica_necessaria:
                 cv2.line(drawing_frame, (0, h // 2), (w, h // 2), (255, 255, 255), 3)
 
-            # use the centroid tracker to associate the (1) old object
-            # centroids with (2) the newly computed object centroids
+            # Tramite i centroidi, associamo il vecchio oggetto a quello nuovo, che si è mosso
             objects = ct.update(rects)
 
-            # loop over the tracked objects
             for (objectID, centroid) in objects.items():
-                # check to see if a trackable object exists for the current
-                # object ID
+                # Assegnamo il tracker se l'oggetto è già stato salvato nei trackers...
                 to = trackable_objects.get(objectID, None)
 
-                # if there is no existing trackable object, create one
+                # ...altrimenti lo creiamo nuovo
                 if to is None:
                     to = TrackableObject(objectID, centroid)
 
-                # otherwise, there is a trackable object so we can utilize it
-                # to determine direction
+                # Se era già stato salvato, è il momento di controllare la sua direzione
                 else:
-                    # the difference between the y-coordinate of the *current*
-                    # centroid and the mean of *previous* centroids will tell
-                    # us in which direction the object is moving (negative for
-                    # 'up' and positive for 'down')
+                    # La differenza tra le cooordinate y ci dirà se l'oggetto
+                    # si sta muovendo verso l'alto o verso il basso
                     y = [c[1] for c in to.centroids]
                     direction = centroid[1] - np.mean(y)
                     to.centroids.append(centroid)
 
                     # L'oggetto in questione è già stato calcolato? 
-                    # Altrimenti posso scartarlo per non contarlo più volt
+                    # Altrimenti posso scartarlo per non contarlo più volte
                     if not to.counted:
+                        # La direzione dell'oggetto dipende anche da self.direzione_entrata
 
                         # Se la direzione è negativa (la persona si muove verso il basso)
                         # e il centroide è sopra la riga centrale, lo conto
@@ -228,9 +232,8 @@ class Kinect(Contapersone):
                                 moved_people = -1
                             
 
-                        # if the direction is positive (la persona si muove verso l'alto) 
-                        # AND the centroid is below the
-                        # center line, count the object
+                        # Se la direzione è positiva (la persona si muove verso l'alto) 
+                        #e il centroide è sotto la linea centrale, conta l'oggetto
                         elif direction > 0 and centroid[1] > h // 2:
                             total_down += 1
                             empty1.append(total_down)
@@ -242,62 +245,57 @@ class Kinect(Contapersone):
                             else:
                                 moved_people = 1
                         
+                        # Invio del messaggio MQTT, se effettivamente qualcuno è passato
                         if moved_people:
                             print("Ricezione del messaggio andata a buon fine?", self.send(self.gen_passaggio_object(moved_people)))
 
-                # store the trackable object in our dictionary
+                # Salva il tracker per il futuro
                 trackable_objects[objectID] = to
 
-                # draw both the ID of the object and the centroid of the
-                # object on the output frame
-                text = "ID {}".format(objectID)
+                # Se si è in debug, viene disegnato sul frame sia l'id dell'oggetto che il punto "centroide" e viene
+                # printato il frame a video
                 if self.grafica_necessaria:
+                    text = "ID {}".format(objectID)
                     cv2.putText(drawing_frame, text, (centroid[0] - 10, centroid[1] - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
                     cv2.circle(drawing_frame, (centroid[0], centroid[1]), 4, (255, 255, 255), -1)
 
-            # construct a tuple of information we will be displaying on the
-            info = [
-                ("Exit", total_up),
-                ("Enter", total_down),
-                ("Status", status),
-            ]
+                    info = [
+                        ("Exit", total_up),
+                        ("Enter", total_down),
+                        ("Status", status),
+                    ]
 
-            info2 = [("Total people inside", x), ]
+                    info2 = [("Total people inside", x), ]
 
-            # Display the output
-            if self.grafica_necessaria:
-                for (i, (k, v)) in enumerate(info):
-                    text = "{}: {}".format(k, v)
-                    cv2.putText(drawing_frame, text, (10, h - ((i * 20) + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
-                                (255, 255, 255), 2)
+                    for (i, (k, v)) in enumerate(info):
+                        text = "{}: {}".format(k, v)
+                        cv2.putText(drawing_frame, text, (10, h - ((i * 20) + 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
+                                    (255, 255, 255), 2)
 
-                for (i, (k, v)) in enumerate(info2):
-                    text = "{}: {}".format(k, v)
-                    cv2.putText(drawing_frame, text, (265, h - ((i * 20) + 60)), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
-                                (255, 255, 255), 2)
-
-            # show the output frame
-            if self.grafica_necessaria:
+                    for (i, (k, v)) in enumerate(info2):
+                        text = "{}: {}".format(k, v)
+                        cv2.putText(drawing_frame, text, (265, h - ((i * 20) + 60)), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
+                                    (255, 255, 255), 2)
                 cv2.imshow("Real-Time Monitoring/Analysis Window", drawing_frame)
 
             key = cv2.waitKey(1) & 0xFF
 
-            # increment the total number of frames processed thus far and
-            # then update the FPS counter
+            # Incrementa il numero totale di frame processati fino ad ora e
+            # aggiorna il contatore degli fps
             total_frames += 1
             fps.update()
 
-            # if the 'q' key was pressed, break from the loop
+            # Se la "q" viene premuta, il programma si ferma
             if key == ord("q"):
                 break
 
-        # stop the timer and display FPS information
+        # Informazioni sulle performance
         fps.stop()
         print("[INFO] elapsed time: {:.2f}".format(fps.elapsed()))
         print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
 
-        # close any open windows
+        # Chiusura di tutte le fineste (es. feed video di debug)
         cv2.destroyAllWindows()
 
 
