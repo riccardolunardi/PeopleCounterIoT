@@ -87,7 +87,7 @@ class CentroidTracker:
 			# i valori per la rispettiva riga (asse X)
 			cols = distance.argmin(axis=1)[rows]
 
-			# In questo modo otteniamo gli indici corretti per identificare poi, nel ciclo for, la distanza
+			# In questo modo otteniamo gli indici corretti per identificare poi, nel ciclo for, la distanza.
 
 			# Usiamo i set per tenere traccia delle colonne e delle righe
 			# di cui abbiamo già tenuto conto
@@ -101,14 +101,12 @@ class CentroidTracker:
 			# Ogni iterazione significa una elaborazione del centroide di un certo oggetto
 			for (row, col) in zip(rows, cols):
 				# Ignoriamo la riga e la colonna se è già stata esaminata
-				print(row, col)
 				if row in used_rows or col in used_cols:
 					continue
 
 				# Se la distanza tra i due è più grande della distanza
 				# massima consentita, allora prosegui. Non ha senso
 				# associare i centroidi allo stesso oggetto
-				print(distance[row, col])
 				if distance[row, col] > self.max_distance:
 					continue
 
