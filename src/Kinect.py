@@ -73,7 +73,7 @@ class Kinect(Contapersone):
 
         # Inizializzazione della classe di thread, da dove leggeremo i frame
         vs = thread.ThreadingClass()
-
+        self.broker_display_connection.loop_start()
         while True:
             frame = vs.read()
 
