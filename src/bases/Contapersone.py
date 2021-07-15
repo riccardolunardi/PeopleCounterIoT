@@ -100,7 +100,7 @@ class Contapersone:
         def publish_msg(client, userdata, mid):
             print(f"Message published!")
 
-        client.on_connect = connect_msg
+        #client.on_connect = connect_msg
         client.on_publish = publish_msg
 
         broker = ip_client.split(":")[0]
