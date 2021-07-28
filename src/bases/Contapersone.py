@@ -38,6 +38,7 @@ class Contapersone:
             for contapersone in info_stanza["contapersone"]:
                 if contapersone["id"] == id_contapersone:
                     display_ip = info_stanza["broker"]
+                    server_ip = info_stanza["server_db"]
                     self.id_contapersone = id_contapersone
                     self.nome = contapersone["nome"]
                     self.stanza = stanza
@@ -55,6 +56,7 @@ class Contapersone:
 
         assert display_ip != ""
         self.broker_display_connection = Contapersone.get_mqtt_client("Display", display_ip)
+        self.server_connection = Contapersone.get_mqtt_client("DB", server_ip)
 
     def send(self, nuovo_passaggio: Passaggio):
         """
@@ -72,6 +74,9 @@ class Contapersone:
         
         print("Errore:",result," - Riconnessione...")
         self.broker_display_connection.reconnect()
+
+        (result, _) = self.server_connection.publish(f"passaggio/{self.stanza}", nuovo_passaggio.serialize(), qos=0) # Invio al server per salvataggio dei dati su InfluxDB
+
         return False # Ritorna false in caso serva al chiamante
 
     def gen_passaggio_object(self, movimenti):
