@@ -1,6 +1,6 @@
 {
   "Cucina": {
-    "broker": "192.168.43.129:1883",
+    "broker": "localhost:1883",
     "server_db": "ec2-3-122-232-142.eu-central-1.compute.amazonaws.com:1883",
     "contapersone": [
       {
