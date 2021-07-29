@@ -17,8 +17,8 @@ class Simulatore(Contapersone):
             Funzione principale che invia dati randomici al server
         """
         while True:
-            time.sleep(random.randint(5, 25))
-            self.send(self.gen_passaggio_object(random.randint(-9, 10)))
+            time.sleep(random.randint(2, 7))
+            self.send(self.gen_passaggio_object(random.randint(-1, 5)))
 
 if __name__ == "__main__":
     contapersone = Simulatore(1, "../config/simulatore.json")
