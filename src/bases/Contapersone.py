@@ -67,15 +67,19 @@ class Contapersone:
         # QoS = 0, retain = False
         print(f"Trying to publish {nuovo_passaggio.serialize()}...")
 
-        (result, _) = self.broker_display_connection.publish(f"passaggio/{self.stanza}", nuovo_passaggio.serialize(), qos=0)
+        (result_display, _) = self.broker_display_connection.publish(f"passaggio/{self.stanza}", nuovo_passaggio.serialize(), qos=0)
+        (result_server, _) = self.server_connection.publish(f"passaggio", nuovo_passaggio.serialize(), qos=0) # Invio al server per salvataggio dei dati su InfluxDB
 
-        if result == mqtt.MQTT_ERR_SUCCESS:
+        if result_display == mqtt.MQTT_ERR_SUCCESS and result_server == mqtt.MQTT_ERR_SUCCESS:
             return True
-        
-        print("Errore:",result," - Riconnessione...")
-        self.broker_display_connection.reconnect()
 
-        (result, _) = self.server_connection.publish(f"passaggio/{self.stanza}", nuovo_passaggio.serialize(), qos=0) # Invio al server per salvataggio dei dati su InfluxDB
+        elif result_display == mqtt.MQTT_ERR_SUCCESS:
+            print("Errore:", result," - Riconnessione...")
+            self.broker_display_connection.reconnect()
+
+        elif result_server == mqtt.MQTT_ERR_SUCCESS:
+            print("Errore:", result," - Riconnessione...")
+            self.server_connection.reconnect()
 
         return False # Ritorna false in caso serva al chiamante
 
