@@ -58,6 +58,11 @@ class Contapersone:
         self.broker_display_connection = Contapersone.get_mqtt_client("Display", display_ip)
         self.server_connection = Contapersone.get_mqtt_client("DB", server_ip)
 
+        if server_ip == display_ip:
+            self.redundant_conn = True
+        else:
+            self.redundant_conn = False
+
     def send(self, nuovo_passaggio: Passaggio):
         """
         Invia il messaggio contenente l'oggetto Passaggio al broker.
@@ -68,7 +73,11 @@ class Contapersone:
         print(f"Trying to publish {nuovo_passaggio.serialize()}...")
 
         (result_display, _) = self.broker_display_connection.publish(f"passaggio/{self.stanza}", nuovo_passaggio.serialize(), qos=0)
-        (result_server, _) = self.server_connection.publish(f"passaggio", nuovo_passaggio.serialize(), qos=0) # Invio al server per salvataggio dei dati su InfluxDB
+
+        #if not self.redundant_conn: # Se è vero. allora non mando il messaggio, vsto che arriverebbe 2 volte a destinazione
+        (result_server, _) = self.server_connection.publish(f"passaggiodb", nuovo_passaggio.serialize_db(), qos=0) # Invio al server per salvataggio dei dati su InfluxDB
+        #else:
+        #    result_server = mqtt.MQTT_ERR_SUCCESS
 
         if result_display == mqtt.MQTT_ERR_SUCCESS and result_server == mqtt.MQTT_ERR_SUCCESS:
             return True
@@ -88,6 +97,12 @@ class Contapersone:
         Genera un'oggetto Passaggio a partire dall'argomento 'movimenti' e l'oggetto corrente
         """
         return Passaggio(persone_contate=movimenti, stanza=self.stanza, dispositivo=self.dispositivo)
+
+    def gen_passaggio_object_with_time(self, movimenti, timestamp):
+        """
+        Genera un'oggetto Passaggio a partire dall'argomento 'movimenti', dall'oggetto corrente e da un timestamp
+        """
+        return Passaggio(timestamp=timestamp, persone_contate=movimenti, stanza=self.stanza, dispositivo=self.dispositivo)
 
     def main_procedure(self):
         """
