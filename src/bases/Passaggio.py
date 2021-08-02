@@ -1,4 +1,5 @@
 import json
+import copy
 from datetime import datetime
 from dateutil import tz
 
@@ -10,7 +11,7 @@ class Passaggio:
     """
 
     def __init__(self,
-                 timestamp=datetime.now(tz.gettz('Europe/Rome')).isoformat(),
+                 timestamp=None,
                  persone_contate=0,
                  stanza="default",
                  dispositivo="default"):
@@ -18,14 +19,29 @@ class Passaggio:
         Costruttore di classe principale.
         Inizializza l'oggetto contenente i dati principali
         """
-        self.timestamp = timestamp
+        if not timestamp:
+            self.time = datetime.now(tz.gettz('Europe/Rome')).isoformat()
+        else:
+            self.time = timestamp
+            
         self.persone_contate = persone_contate
         self.stanza = stanza
         self.dispositivo = dispositivo
 
+    def serialize_db(self) -> str:
+        passaggio_dict = copy.deepcopy(self.__dict__)
+        passaggio_dict["measurement"] = "contapersone"
+        passaggio_dict["fields"] = {"persone_contate": passaggio_dict["persone_contate"]}
+        passaggio_dict["tags"] = {"stanza": passaggio_dict["stanza"], "dispositivo": passaggio_dict["dispositivo"]}
+        del passaggio_dict["persone_contate"]
+        del passaggio_dict["stanza"]
+        del passaggio_dict["dispositivo"]
+
+        return json.dumps(passaggio_dict, default=str)
+
     def serialize(self) -> str:
         return json.dumps(self.__dict__, default=str)
-
+        
     @staticmethod
     def deserialize(json_object):
         """
