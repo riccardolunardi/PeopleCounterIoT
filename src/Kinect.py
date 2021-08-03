@@ -16,7 +16,7 @@ class Kinect(Contapersone):
     Classe che gestisce il contatore di persone realizzato con Kinect e OpenCV
     """
 
-    def __init__(self, id_contapersone=1, config_file="../config/simulatore.json", debug=1):
+    def __init__(self, id_contapersone=1, config_file="../config/configurazione.json", debug=1):
         if not debug:
             self.grafica_necessaria = False # Si sta avviando lo script da terminale
             print("DEBUG: NO")

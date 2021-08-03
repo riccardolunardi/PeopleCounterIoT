@@ -11,7 +11,7 @@ class Simulatore(Contapersone):
         Ogni x secondi viene inviato un oggetto generato randomicamente e viene inviato al broker
     """
     def __init__(self, id_contapersone, config_file):
-        super().__init__(1, "../config/simulatore.json")
+        super().__init__(1, "../config/configurazione.json")
 
     def main_procedure(self):
         """
@@ -54,5 +54,5 @@ class Simulatore(Contapersone):
             time.sleep(0.3) 
 
 if __name__ == "__main__":
-    contapersone = Simulatore(1, "../config/simulatore.json")
+    contapersone = Simulatore(1, "../config/configurazione.json")
     contapersone.main_procedure()
