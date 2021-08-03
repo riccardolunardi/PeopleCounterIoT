@@ -1,0 +1,19 @@
+{
+  "Mediaworld": {
+    "broker": "localhost:1883",
+    "server_db": "localhost:1883",
+    "contapersone": [
+      {
+        "id": 1,
+        "nome": "Simulatore di contapersone",
+        "dispositivo": "Simulatore"
+      },
+      {
+        "id": 2,
+        "nome": "Contapersone tramite Kinect",
+        "dispositivo": "Kinect",
+        "direzione_entrata": "down"
+      }
+    ]
+  }
+}
