@@ -4,7 +4,11 @@ from bases.Passaggio import Passaggio
 from bases.InfoManager import InfoManager
 
 def cls():
-    os.system('cls' if os.name=='nt' else 'clear')
+    """
+        Questo comando serve a pulire il terminale: in questo modo viene visualizzata solo l'informazione
+        principale più aggiornata.
+    """
+    os.system('cls' if os.name=='nt' else 'clear') 
 
 class RealTimeCounter(InfoManager):
     """
