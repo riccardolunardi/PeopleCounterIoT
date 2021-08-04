@@ -6,7 +6,7 @@ from .Passaggio import Passaggio
 
 class ContapersoneNotFound(Exception):
     """
-    Eccezione alzata quando il Contapersone non viene trovato
+    Eccezione lanciata quando il Contapersone non viene trovato
 
     Attributes:
         campo -- campo con cui si ha cercato il Contapersone
