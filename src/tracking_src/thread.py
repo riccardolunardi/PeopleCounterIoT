@@ -13,8 +13,8 @@ class ThreadingClass:
     t.daemon = True
     t.start()
 
-  # read the frames as soon as they are available
-  # this approach removes OpenCV's internal buffer and reduces the frame lag
+  # Lettura dei frame (appena uno nuovo è disponibile
+  # Così facendo viene ridotto il lag di acquisizione introdotto da OpenCV
   def _reader(self):
     """
       Legge tutti i frame appena sono disponibili, evitando il buffer
